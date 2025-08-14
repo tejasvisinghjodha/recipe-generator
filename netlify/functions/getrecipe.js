@@ -9,7 +9,7 @@ export async function handler(event) {
       };
     }
 
-    const HF_ACCESS_TOKEN = process.env.HF_ACCESS_TOKEN;
+    const HF_ACCESS_TOKEN = process.env.VITE_TMBD_API_KEY;
     if (!HF_ACCESS_TOKEN) {
       return {
         statusCode: 500,
