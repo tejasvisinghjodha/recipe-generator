@@ -2,49 +2,51 @@ import fetch from "node-fetch";
 
 export async function handler(event) {
   try {
+    // Parse request body from frontend
     const { ingredients } = JSON.parse(event.body);
-    const API_KEY = process.env.VITE_TMBD_API_KEY; 
 
-    if (!API_KEY) {
-      console.error("❌ API key not found in environment variables.");
+    // Backend env variable (set in Netlify dashboard)
+    const HF_ACCESS_TOKEN = process.env.HF_ACCESS_TOKEN;
+
+    if (!HF_ACCESS_TOKEN) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "API key is missing on server." }),
+        body: JSON.stringify({ error: "Missing HF_ACCESS_TOKEN in environment" }),
       };
     }
 
+    // Call Hugging Face model (replace URL if different model)
     const response = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${API_KEY}`, 
+          Authorization: `Bearer ${HF_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: `Give me a recipe using these ingredients: ${ingredients}`,
+          inputs: `Give me a recipe using the following ingredients: ${ingredients.join(", ")}.`,
         }),
       }
     );
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error("❌ Hugging Face API error:", data);
       return {
         statusCode: response.status,
-        body: JSON.stringify({ error: data }),
+        body: JSON.stringify({ error: `Model API error: ${await response.text()}` }),
       };
     }
 
+    const data = await response.json();
+
     return {
       statusCode: 200,
-      body: JSON.stringify(data),
+      body: JSON.stringify({ recipe: data }),
     };
-  } catch (error) {
-    console.error("❌ Server error:", error);
+  } catch (err) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Internal Server Error" }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 }
