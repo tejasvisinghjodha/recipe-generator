@@ -1,19 +1,15 @@
+import fetch from "node-fetch";
+
 export async function handler(event) {
   try {
-    const { ingredients } = JSON.parse(event.body || "{}");
+    const { ingredients } = JSON.parse(event.body);
+    const API_KEY = process.env.VITE_TMBD_API_KEY; 
 
-    if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "No ingredients provided" }),
-      };
-    }
-
-    const HF_ACCESS_TOKEN = process.env.VITE_TMBD_API_KEY;
-    if (!HF_ACCESS_TOKEN) {
+    if (!API_KEY) {
+      console.error("❌ API key not found in environment variables.");
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Missing Hugging Face API token" }),
+        body: JSON.stringify({ error: "API key is missing on server." }),
       };
     }
 
@@ -22,33 +18,33 @@ export async function handler(event) {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${HF_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`, 
         },
         body: JSON.stringify({
-          inputs: `I have ${ingredients.join(", ")}. Please give me a recipe!`,
+          inputs: `Give me a recipe using these ingredients: ${ingredients}`,
         }),
       }
     );
 
-    const result = await response.json();
+    const data = await response.json();
 
-    let recipeText = "";
-    if (Array.isArray(result) && result[0]?.generated_text) {
-      recipeText = result[0].generated_text;
-    } else {
-      recipeText = JSON.stringify(result);
+    if (!response.ok) {
+      console.error("❌ Hugging Face API error:", data);
+      return {
+        statusCode: response.status,
+        body: JSON.stringify({ error: data }),
+      };
     }
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipe: recipeText }),
+      body: JSON.stringify(data),
     };
   } catch (error) {
+    console.error("❌ Server error:", error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ error: "Internal Server Error" }),
     };
   }
 }
